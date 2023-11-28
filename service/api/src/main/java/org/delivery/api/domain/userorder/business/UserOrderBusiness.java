@@ -11,6 +11,7 @@ import org.delivery.api.domain.userorder.converter.UserOrderConverter;
 import org.delivery.api.domain.userorder.model.UserOrderDetailResponse;
 import org.delivery.api.domain.userorder.model.UserOrderRequest;
 import org.delivery.api.domain.userorder.model.UserOrderResponse;
+import org.delivery.api.domain.userorder.producer.UserOrderProducer;
 import org.delivery.api.domain.userorder.service.UserOrderService;
 import org.delivery.api.domain.userordermenu.converter.UserOrderMenuConverter;
 import org.delivery.api.domain.userordermenu.service.UserOrderMenuService;
@@ -31,13 +32,14 @@ public class UserOrderBusiness {
 	private final StoreService storeService;
 	private final StoreMenuConverter storeMenuConverter;
 	private final StoreConverter storeConverter;
+	private final UserOrderProducer userOrderProducer;
 
 	public UserOrderResponse userOrder(User user, UserOrderRequest request) {
 		var storeMenuEntityList = request.getStoreMenuIdList().stream()
 			.map(storeMenuService::getStoreMenuWithThrow)
 			.collect(Collectors.toList());
 
-		var userOrderEntity = userOrderConverter.toEntity(user, storeMenuEntityList);
+		var userOrderEntity = userOrderConverter.toEntity(user, request.getStoreId(), storeMenuEntityList);
 
 		var newUserOrderEntity = userOrderService.order(userOrderEntity);
 
@@ -51,6 +53,9 @@ public class UserOrderBusiness {
 			.collect(Collectors.toList());
 
 		userOrderMenuEntityList.forEach(userOrderMenuService::order);
+
+		// send producer
+		userOrderProducer.sendOrder(newUserOrderEntity);
 
 		return userOrderConverter.toResponse(newUserOrderEntity);
 	}
